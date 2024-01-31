@@ -1,10 +1,9 @@
 #Autor - actualización : Humberto Melendez
 #correo - humberto.melendez.arg@gmail.com
 ---
-version: "4.8"
+version: '1'
 services:
   nginx:
-      dockerfile: "Dockerfile.nginx-debian"
     image: "defectdojo/defectdojo-nginx"
     profiles:
       - mysql-rabbitmq
