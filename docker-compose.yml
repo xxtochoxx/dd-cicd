@@ -139,7 +139,7 @@ services:
       - type: bind
         source: ./docker/extra_settings
         target: /app/docker/extra_settings
-      - "defectdojo_media::/app/media"
+      - "defectdojo_media:/app/media"
     restart: unless-stopped
     networks:
       - devops
