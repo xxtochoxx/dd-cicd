@@ -50,7 +50,7 @@ services:
     hostname: nginx
         build:
             context: ./
-    dockerfile: "Dockerfile.nginx-${DEFECT_DOJO_OS:-debian}"
+            dockerfile: "Dockerfile.nginx-${DEFECT_DOJO_OS:-debian}"
     image: "defectdojo/defectdojo-nginx"
     profiles:
       - mysql-rabbitmq
