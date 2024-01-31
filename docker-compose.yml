@@ -50,7 +50,7 @@ services:
     hostname: nginx
         build:
             context: ./
-            dockerfile: "Dockerfile.nginx-${DEFECT_DOJO_OS:-debian}"
+            dockerfile: "Dockerfile.nginx-debian"
     image: "defectdojo/defectdojo-nginx"
     profiles:
       - mysql-rabbitmq
@@ -72,7 +72,7 @@ services:
   uwsgi:
     build:
       context: ./
-      dockerfile: "Dockerfile.django-${DEFECT_DOJO_OS:-debian}"
+      dockerfile: "Dockerfile.django-debian"
       target: django
     image: "defectdojo/defectdojo-django"
     profiles:
