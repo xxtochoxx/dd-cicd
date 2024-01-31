@@ -2,10 +2,9 @@
 #correo - humberto.melendez.arg@gmail.com
 ---
 version: "4.8"
-
 services:
   nginx:
-    dockerfile: "Dockerfile.nginx-debian"
+      dockerfile: "Dockerfile.nginx-debian"
     image: "defectdojo/defectdojo-nginx"
     profiles:
       - mysql-rabbitmq
