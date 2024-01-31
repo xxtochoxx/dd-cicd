@@ -5,8 +5,6 @@ version: "4.8"
 
 services:
   nginx:
-    build:
-        context: ./
         dockerfile: "Dockerfile.nginx-debian"
     image: "defectdojo/defectdojo-nginx"
     profiles:
@@ -27,8 +25,6 @@ services:
     networks:
       - devops
   uwsgi:
-    build:
-      context: ./
       dockerfile: "Dockerfile.django-debian"
       target: django
     image: "defectdojo/defectdojo-django"
@@ -171,65 +167,22 @@ services:
     volumes:
       - defectdojo_redis:/data
     restart: unless-stopped
-  myjenkins:
-    container_name: my_jenkins_v2
-    image: jenkins/jenkins:lts
-    user: root
-    environment:
-      SONARQUBE_HOST: mysonarqube
-    ports:
-      - "8084:8080"
-    volumes:
-      # Named  Docker volume details at the bottom
-      - jenkins_home:/var/jenkins_home
-      # WARNING:
-      - /var/run/docker.sock:/var/run/docker.sock
-    networks:
-      - devops
-    deploy:
-      resources:
-        limits:
-          cpus: "3"
-          memory: 4G
-  mysonarqube:
-    container_name: my_sonarqube_v2
-    # build: ./sonarqube_home
-    image: sonarqube:9.9.3-community
-    environment:
-      SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: "true"
-    ports:
-      - "9004:9000"
-    networks:
-      - devops
-    volumes:
-      - ./sonarqube_home/conf/:/opt/sonarqube/conf
-      - ./sonarqube_home/data/:/opt/sonarqube/data
-      - ./sonarqube_home/logs/:/opt/sonarqube/logs
-      - ./sonarqube_home/extensions/:/opt/sonarqube/extensions
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          cpus: "3"
-          memory: 4G
 # To use docker-volume (custom_jenkins_home) instead of a directory path-file
 volumes:
-  jenkins_home:
-    name: "jenkins_home_v1.0"
   nginx_home:
-    name: "nginx_home_v1.0"
+    name: "nginx_home_v2.0"
   defectdojo_postgres:
-    name: "postgres_v1.0"
+    name: "postgres_v2.0"
   defectdojo_rabbitmq:
-    name: "rabbitmq_v1.0"
+    name: "rabbitmq_v2.0"
   defectdojo_redis:
-    name: "redis_v1.0"
+    name: "redis_v2.0"
   defectdojo_media:
-    name: "defectdojo_media_v1.0"
+    name: "defectdojo_media_v2.0"
   defectdojo_data:
-    name: "defectdojo_data_v1.0"
+    name: "defectdojo_data_v2.0"
   defectdojo_media_nginx:
-    name: "defectdojo_nginx_v1.0"
+    name: "defectdojo_nginx_v2.0"
 
 networks:
   devops:
