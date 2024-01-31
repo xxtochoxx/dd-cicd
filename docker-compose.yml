@@ -46,11 +46,9 @@ services:
           cpus: "3"
           memory: 4G
   nginx:
-    container_name: nginx
-    hostname: nginx
-        build:
-            context: ./
-            dockerfile: "Dockerfile.nginx-debian"
+    build:
+        context: ./
+        dockerfile: "Dockerfile.nginx-debian"
     image: "defectdojo/defectdojo-nginx"
     profiles:
       - mysql-rabbitmq
