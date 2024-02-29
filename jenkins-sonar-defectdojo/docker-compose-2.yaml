@@ -1,0 +1,226 @@
+#Autor - actualización : Humberto Melendez
+#correo - humberto.melendez.arg@gmail.com
+---
+version: "4.8"
+
+services:
+  myjenkins:
+    container_name: jenkins
+    image: jenkins/jenkins:lts
+    user: root
+    environment:
+      SONARQUBE_HOST: mysonarqube
+    ports:
+      - "8086:8080"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - devops
+    deploy:
+      resources:
+        limits:
+          cpus: "3"
+          memory: 4G
+  mysonarqube:
+    container_name: sonar
+    image: sonarqube:9.9.3-community
+    environment:
+      SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: "true"
+    ports:
+      - "9006:9000"
+    networks:
+      - devops
+    volumes:
+      - ./sonarqube_home/conf/:/opt/sonarqube/conf
+      - ./sonarqube_home/data/:/opt/sonarqube/data
+      - ./sonarqube_home/logs/:/opt/sonarqube/logs
+      - ./sonarqube_home/extensions/:/opt/sonarqube/extensions
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "3"
+          memory: 4G
+
+  nginx:
+    build:
+      context: ./
+      dockerfile: "Dockerfile.nginx-${DEFECT_DOJO_OS:-debian}"
+    image: "defectdojo/defectdojo-nginx:${NGINX_VERSION:-latest}"
+    profiles:
+      - mysql-rabbitmq
+      - mysql-redis
+      - postgres-rabbitmq
+      - postgres-redis
+    depends_on:
+      - uwsgi
+    environment:
+      NGINX_METRICS_ENABLED: "${NGINX_METRICS_ENABLED:-false}"
+    volumes:
+      - defectdojo_media:/usr/share/nginx/html/media
+    ports:
+      - "8089:8080"
+    networks:
+      - devops
+  uwsgi:
+    build:
+      context: ./
+      dockerfile: "Dockerfile.django-${DEFECT_DOJO_OS:-debian}"
+      target: django
+    image: "defectdojo/defectdojo-django:${DJANGO_VERSION:-latest}"
+    user: root
+    profiles:
+      - mysql-rabbitmq
+      - mysql-redis
+      - postgres-rabbitmq
+      - postgres-redis
+    depends_on:
+      - ${DD_DOCKERCOMPOSE_DATABASE:-postgres}
+    entrypoint: ['/wait-for-it.sh', '${DD_DATABASE_HOST}:${DD_DATABASE_PORT}', '-t', '30', '--', '/entrypoint-uwsgi.sh']
+    environment:
+      DD_DEBUG: 'False'
+      DD_DJANGO_METRICS_ENABLED: "${DD_DJANGO_METRICS_ENABLED:-False}"
+      DD_ALLOWED_HOSTS: "${DD_ALLOWED_HOSTS:-*}"
+      DD_DATABASE_URL: ${DD_DATABASE_URL}
+      DD_CELERY_BROKER_URL: ${DD_CELERY_BROKER_URL}
+      DD_SECRET_KEY: "${DD_SECRET_KEY:-hhZCp@D28z!n@NED*yB!ROMt+WzsY*iq}"
+      DD_CREDENTIAL_AES_256_KEY: "${DD_CREDENTIAL_AES_256_KEY:-&91a*agLqesc*0DJ+2*bAbsUZfR*4nLw}"
+    volumes:
+        - type: bind
+          source: ./docker/extra_settings
+          target: /app/docker/extra_settings
+        - "defectdojo_media:${DD_MEDIA_ROOT:-/app/media}"
+    networks:
+      - devops
+  celerybeat:
+    image: "defectdojo/defectdojo-django:${DJANGO_VERSION:-latest}"
+    profiles:
+      - mysql-rabbitmq
+      - mysql-redis
+      - postgres-rabbitmq
+      - postgres-redis
+    depends_on:
+      - ${DD_DOCKERCOMPOSE_DATABASE:-postgres}
+      - ${DD_DOCKERCOMPOSE_BROKER:-redis}
+    entrypoint: ['/wait-for-it.sh', '${DD_DATABASE_HOST}:${DD_DATABASE_PORT}', '-t', '30', '--', '/entrypoint-celery-beat.sh']
+    environment:
+      DD_DATABASE_URL: ${DD_DATABASE_URL}
+      DD_CELERY_BROKER_URL: ${DD_CELERY_BROKER_URL}
+      DD_SECRET_KEY: "${DD_SECRET_KEY:-hhZCp@D28z!n@NED*yB!ROMt+WzsY*iq}"
+      DD_CREDENTIAL_AES_256_KEY: "${DD_CREDENTIAL_AES_256_KEY:-&91a*agLqesc*0DJ+2*bAbsUZfR*4nLw}"
+    volumes:
+        - type: bind
+          source: ./docker/extra_settings
+          target: /app/docker/extra_settings
+    networks:
+      - devops
+  celeryworker:
+    image: "defectdojo/defectdojo-django:${DJANGO_VERSION:-latest}"
+    profiles:
+      - mysql-rabbitmq
+      - mysql-redis
+      - postgres-rabbitmq
+      - postgres-redis
+    depends_on:
+      - ${DD_DOCKERCOMPOSE_DATABASE:-postgres}
+      - ${DD_DOCKERCOMPOSE_BROKER:-redis}
+    entrypoint: ['/wait-for-it.sh', '${DD_DATABASE_HOST}:${DD_DATABASE_PORT}', '-t', '30', '--', '/entrypoint-celery-worker.sh']
+    environment:
+      DD_DATABASE_URL: ${DD_DATABASE_URL}
+      DD_CELERY_BROKER_URL: ${DD_CELERY_BROKER_URL}
+      DD_SECRET_KEY: "${DD_SECRET_KEY:-hhZCp@D28z!n@NED*yB!ROMt+WzsY*iq}"
+      DD_CREDENTIAL_AES_256_KEY: "${DD_CREDENTIAL_AES_256_KEY:-&91a*agLqesc*0DJ+2*bAbsUZfR*4nLw}"
+    volumes:
+        - type: bind
+          source: ./docker/extra_settings
+          target: /app/docker/extra_settings
+        - "defectdojo_media:${DD_MEDIA_ROOT:-/app/media}"
+    networks:
+      - devops
+  initializer:
+    image: "defectdojo/defectdojo-django:${DJANGO_VERSION:-latest}"
+    profiles:
+      - mysql-rabbitmq
+      - mysql-redis
+      - postgres-rabbitmq
+      - postgres-redis
+    depends_on:
+      - ${DD_DOCKERCOMPOSE_DATABASE:-postgres}
+    entrypoint: ['/wait-for-it.sh', '${DD_DATABASE_HOST}:${DD_DATABASE_PORT}', '--', '/entrypoint-initializer.sh']
+    environment:
+      DD_DATABASE_URL: ${DD_DATABASE_URL}
+      DD_ADMIN_USER: "${DD_ADMIN_USER:-admin}"
+      DD_ADMIN_MAIL: "${DD_ADMIN_USER:-admin@defectdojo.local}"
+      DD_ADMIN_FIRST_NAME: "${DD_ADMIN_FIRST_NAME:-Admin}"
+      DD_ADMIN_LAST_NAME: "${DD_ADMIN_LAST_NAME:-User}"
+      DD_INITIALIZE: "${DD_INITIALIZE:-true}"
+      DD_SECRET_KEY: "${DD_SECRET_KEY:-hhZCp@D28z!n@NED*yB!ROMt+WzsY*iq}"
+      DD_CREDENTIAL_AES_256_KEY: "${DD_CREDENTIAL_AES_256_KEY:-&91a*agLqesc*0DJ+2*bAbsUZfR*4nLw}"
+    volumes:
+        - type: bind
+          source: ./docker/extra_settings
+          target: /app/docker/extra_settings
+    networks:
+      - devops
+  mysql:
+    image: mysql:5.7.44@sha256:4bc6bc963e6d8443453676cae56536f4b8156d78bae03c0145cbe47c2aad73bb
+    profiles:
+      - mysql-rabbitmq
+      - mysql-redis
+    environment:
+      MYSQL_RANDOM_ROOT_PASSWORD: 'yes'
+      MYSQL_DATABASE: ${DD_DATABASE_NAME}
+      MYSQL_USER: ${DD_DATABASE_USER}
+      MYSQL_PASSWORD: ${DD_DATABASE_PASSWORD}
+    command: ['mysqld', '--character-set-server=utf8mb4', '--collation-server=utf8mb4_unicode_ci']
+    volumes:
+      - defectdojo_data:/var/lib/mysql
+    networks:
+      - devops
+  postgres:
+    image: postgres:16.1-alpine@sha256:a1b267d05ee39210d162185f52645687c7e63fbe25b8c58ccd7f81f0a7e2ad97
+    profiles: 
+      - postgres-rabbitmq
+      - postgres-redis
+    environment:
+      POSTGRES_DB: ${DD_DATABASE_NAME}
+      POSTGRES_USER: ${DD_DATABASE_USER}
+      POSTGRES_PASSWORD: ${DD_DATABASE_PASSWORD}
+    volumes:
+      - defectdojo_postgres:/var/lib/postgresql/data
+    networks:
+      - devops
+  rabbitmq:
+    image: rabbitmq:3.12.11-alpine@sha256:382561a75b70c00e4ae0f1788a1a6b032eace5073abadb25547496879c65c7c2
+    profiles: 
+      - mysql-rabbitmq
+      - postgres-rabbitmq
+    volumes:
+       - defectdojo_rabbitmq:/var/lib/rabbitmq
+    networks:
+      - devops
+  redis:
+    image: redis:7.2.3-alpine@sha256:090276da2603db19b154602c374f505d94c10ea57e9749fc3e68e955284bf0fd
+    profiles: 
+      - mysql-redis
+      - postgres-redis
+    volumes:
+      - defectdojo_redis:/data
+    networks:
+      - devops
+
+# To use docker-volume (custom_jenkins_home) instead of a directory path-file
+volumes:
+  jenkins_home:
+    name: "jenkins_home_v2.0"
+  defectdojo_data: {}
+  defectdojo_postgres: {}
+  defectdojo_media: {}
+  defectdojo_rabbitmq: {}
+  defectdojo_redis: {}
+
+networks:
+  devops:
+    driver: bridge
+    name: devops
